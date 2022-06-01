@@ -28,7 +28,7 @@ func Handler(ctx context.Context, req events.APIGatewayProxyRequest) (*events.AP
 
 	ip, country, state, err := consumeAPI(hostName)
 	if err != nil {
-		fmt.Println("There was an issue consuming API: ", err)
+		return nil, err
 	}
 
 	res := &events.APIGatewayProxyResponse{
