@@ -1,13 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
 
-	"github.com/gorilla/mux"
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 )
 
 type IPInfo struct {
@@ -17,30 +19,24 @@ type IPInfo struct {
 }
 
 func main() {
-	fmt.Println("Starting endpoint on port: 2525")
-	startServer()
+	lambda.Start(Handler)
 }
 
-func startServer() {
-	myRouter := mux.NewRouter()
-	myRouter.HandleFunc("/v1/ip-info/{address}", getIP).Methods("GET")
-	http.ListenAndServe(":2525", myRouter)
-}
-
-func getIP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "No-Store")
-
-	vars := mux.Vars(r)
-	userInput := vars["address"]
-
+func Handler(ctx context.Context, req events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+	userInput := req.QueryStringParameters["address"]
 	hostName := validateIP(userInput)
+
 	ip, country, state, err := consumeAPI(hostName)
 	if err != nil {
-		fmt.Fprint(w, "There was an issue consuming API: ", err)
+		fmt.Println("There was an issue consuming API: ", err)
 	}
-	fmt.Fprint(w, "Ip Address: ", ip, "\n", "Country: ", country, "\n", "State: ", state)
 
+	res := &events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Body:       fmt.Sprintf("IP Address: %s, Country: %s, State: %s", ip, country, state),
+	}
+
+	return res, nil
 }
 
 func consumeAPI(address string) (Ip, Country, State string, err error) {
