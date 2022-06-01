@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -31,9 +30,12 @@ func Handler(ctx context.Context, req events.APIGatewayProxyRequest) (*events.AP
 		return nil, err
 	}
 
+	info := IPInfo{Ip: ip, Country: country, State: state}
+	ipBytes, _ := json.MarshalIndent(info, "", " ")
+
 	res := &events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Body:       fmt.Sprintf("IP Address: %s, Country: %s, State: %s", ip, country, state),
+		Body:       string(ipBytes),
 	}
 
 	return res, nil
