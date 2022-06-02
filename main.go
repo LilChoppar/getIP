@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -24,16 +23,22 @@ func main() {
 
 func Handler(ctx context.Context, req events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 	userInput := req.QueryStringParameters["address"]
-	hostName := validateIP(userInput)
+	hostName, err := validateIP(userInput)
+	if err != nil {
+		return nil, err
+	}
 
 	ip, country, state, err := consumeAPI(hostName)
 	if err != nil {
 		return nil, err
 	}
 
+	info := IPInfo{Ip: ip, Country: country, State: state}
+	ipBytes, _ := json.MarshalIndent(info, "", " ")
+
 	res := &events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Body:       fmt.Sprintf("IP Address: %s, Country: %s, State: %s", ip, country, state),
+		Body:       string(ipBytes),
 	}
 
 	return res, nil
@@ -60,16 +65,19 @@ func consumeAPI(address string) (Ip, Country, State string, err error) {
 
 //function that checks if user input is ip or hostname.
 //if hostname, convert to ip using net.lookupip
-func validateIP(ip string) string {
+func validateIP(ip string) (string, error) {
 	var convertedIP string
 	if net.ParseIP(ip) == nil {
-		convert, _ := net.LookupIP(ip)
+		convert, err := net.LookupIP(ip)
+		if err != nil {
+			return "", err
+		}
 		//Will only loop once. only need one IP doesn't matter if it's IPv6/4.
 		for i := 1; i < len(convert); i++ {
 			convertedIP = convert[i].String()
 		}
 
-		return convertedIP
+		return convertedIP, nil
 	}
-	return ip
+	return ip, nil
 }
